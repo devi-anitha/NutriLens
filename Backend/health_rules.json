@@ -1,0 +1,296 @@
+{
+  "diabetes": {
+    "avoid": ["white rice", "sugar", "sweet drinks"],
+    "recommend": ["fiber rich foods", "vegetables", "whole grains"],
+    "notes": "Control carbohydrate intake."
+  },
+  "kidney": {
+    "avoid": ["banana", "tomato", "potassium rich foods"],
+    "recommend": ["hydration", "low protein meals"]
+  },
+  "heart": {
+    "avoid": ["fried food", "oily food"],
+    "recommend": ["leafy greens", "omega 3"]
+  },
+  "bone_fracture": {
+    "recommend": ["calcium rich foods", "vitamin d"]
+  },
+  "postpartum": {
+    "recommend": ["iron rich foods", "rest", "hydration"]
+  },
+  "accident_recovery": {
+    "recommend": ["high protein foods"]
+  },
+  "asthma": {
+  "avoid": ["cold drinks", "smoking"],
+  "recommend": ["warm foods", "antioxidant rich foods"]
+},
+"stroke_risk": {
+  "recommend": ["low salt diet", "fruits", "hydration"]
+},
+"hypertension": {
+    "avoid": ["salt", "pickle", "processed food"],
+    "recommend": ["fruits", "vegetables", "low sodium diet"]
+  },
+  "obesity": {
+    "avoid": ["junk food", "fried food"],
+    "recommend": ["low calorie meals", "fiber rich foods"]
+  },
+  "anemia": {
+    "recommend": ["iron rich foods", "leafy greens"]
+  },
+  "gout": {
+  "avoid": ["red meat", "seafood", "alcohol"],
+  "recommend": ["hydration", "low purine foods"]
+},
+"migraine": {
+  "avoid": ["caffeine", "chocolate", "processed food"],
+  "recommend": ["magnesium rich foods", "regular meals"]
+},
+
+"liver_cirrhosis": {
+  "avoid": ["alcohol", "fried food"],
+  "recommend": ["low fat diet", "adequate protein"]
+},
+
+"pancreatitis": {
+  "avoid": ["oily food", "alcohol"],
+  "recommend": ["low fat meals", "hydration"]
+},
+
+"celiac_disease": {
+  "avoid": ["wheat", "barley", "gluten"],
+  "recommend": ["gluten free foods", "rice", "millets"]
+},
+
+"eczema": {
+  "avoid": ["processed food", "dairy"],
+  "recommend": ["anti inflammatory foods", "omega 3"]
+},
+
+"psoriasis": {
+  "avoid": ["alcohol", "red meat"],
+  "recommend": ["fruits", "omega 3 fatty acids"]
+},
+
+"sleep_apnea": {
+  "avoid": ["heavy meals at night", "alcohol"],
+  "recommend": ["light dinner", "weight management"]
+},
+
+"food_allergy": {
+  "avoid": ["nuts", "shellfish", "unknown allergens"],
+  "recommend": ["label checking", "simple foods"]
+},
+
+"depression": {
+  "avoid": ["sugary foods", "processed snacks"],
+  "recommend": ["omega 3 foods", "balanced meals"]
+},
+"glaucoma": {
+  "avoid": ["excess caffeine"],
+  "recommend": ["antioxidant rich foods", "leafy greens"]
+},
+
+"hepatitis": {
+  "avoid": ["alcohol", "fatty foods"],
+  "recommend": ["light meals", "adequate hydration"]
+},
+
+"peptic_ulcer": {
+  "avoid": ["spicy food", "caffeine"],
+  "recommend": ["bland foods", "frequent small meals"]
+},
+
+"autoimmune_disorder": {
+  "avoid": ["processed foods", "refined sugar"],
+  "recommend": ["anti inflammatory foods", "balanced nutrition"]
+},
+
+"malnutrition": {
+  "avoid": [],
+  "recommend": ["nutrient dense foods", "balanced diet"]
+},
+
+"neuropathy": {
+  "avoid": ["alcohol", "high sugar foods"],
+  "recommend": ["vitamin b rich foods", "whole grains"]
+},
+
+"skin_acne": {
+  "avoid": ["oily foods", "sugary snacks"],
+  "recommend": ["low glycemic foods", "hydration"]
+},
+
+"vision_loss_risk": {
+  "avoid": ["high sugar intake"],
+  "recommend": ["vitamin a rich foods", "leafy greens"]
+},
+
+"muscle_cramps": {
+  "avoid": ["dehydration"],
+  "recommend": ["electrolyte rich foods", "magnesium"]
+},
+
+"chronic_fatigue": {
+  "avoid": ["junk food", "irregular meals"],
+  "recommend": ["balanced meals", "iron and protein rich foods"]
+},
+"common_cold": {
+  "avoid": ["cold drinks", "ice cream"],
+  "recommend": ["warm fluids", "vitamin c rich foods"]
+},
+
+"fever": {
+  "avoid": ["oily food", "heavy meals"],
+  "recommend": ["hydration", "light easily digestible foods"]
+},
+
+"diarrhea": {
+  "avoid": ["spicy food", "dairy"],
+  "recommend": ["oral rehydration", "banana", "rice"]
+},
+
+"constipation": {
+  "avoid": ["low fiber foods", "junk food"],
+  "recommend": ["fiber rich foods", "water intake"]
+},
+
+"acid_reflux": {
+  "avoid": ["spicy food", "caffeine", "fried food"],
+  "recommend": ["small meals", "low fat foods"]
+},
+
+"vitamin_b12_deficiency": {
+  "avoid": [],
+  "recommend": ["dairy products", "eggs", "fortified foods"]
+},
+
+"vitamin_c_deficiency": {
+  "avoid": [],
+  "recommend": ["citrus fruits", "amla", "guava"]
+},
+
+"vitamin_a_deficiency": {
+  "avoid": [],
+  "recommend": ["carrots", "leafy greens", "orange vegetables"]
+},
+
+"dehydration": {
+  "avoid": ["excess caffeine", "alcohol"],
+  "recommend": ["water", "electrolyte solutions"]
+},
+
+"overweight": {
+  "avoid": ["high calorie foods", "sugary snacks"],
+  "recommend": ["portion control", "balanced meals"]
+},
+"prediabetes": {
+  "avoid": ["refined sugar", "white flour"],
+  "recommend": ["low glycemic foods", "fiber rich diet"]
+},
+
+"high_cholesterol": {
+  "avoid": ["trans fats", "fried food"],
+  "recommend": ["soluble fiber", "nuts", "healthy fats"]
+},
+
+"fatty_liver": {
+  "avoid": ["alcohol", "sugary foods"],
+  "recommend": ["weight control", "balanced low fat diet"]
+},
+
+"coronary_artery_disease": {
+  "avoid": ["saturated fats", "processed meats"],
+  "recommend": ["heart healthy diet", "omega 3 rich foods"]
+},
+
+"arrhythmia": {
+  "avoid": ["excess caffeine", "alcohol"],
+  "recommend": ["potassium rich foods", "balanced electrolytes"]
+},
+
+"kidney_stones": {
+  "avoid": ["high oxalate foods", "excess salt"],
+  "recommend": ["hydration", "citrate rich foods"]
+},
+
+"urinary_tract_infection": {
+  "avoid": ["caffeinated drinks"],
+  "recommend": ["fluids", "cranberry rich foods"]
+},
+
+"irritable_bowel_syndrome": {
+  "avoid": ["trigger foods", "high fat meals"],
+  "recommend": ["low fodmap foods", "regular meals"]
+},
+
+"lactose_intolerance": {
+  "avoid": ["milk", "dairy products"],
+  "recommend": ["lactose free alternatives", "calcium fortified foods"]
+},
+
+"gastritis": {
+  "avoid": ["spicy food", "alcohol"],
+  "recommend": ["soft foods", "small frequent meals"]
+},
+
+"hypothyroidism": {
+  "avoid": ["excess soy", "processed foods"],
+  "recommend": ["iodine rich foods", "balanced nutrition"]
+},
+
+"hyperthyroidism": {
+  "avoid": ["excess iodine", "caffeine"],
+  "recommend": ["high calorie balanced meals", "adequate protein"]
+},
+
+"pcos_with_insulin_resistance": {
+  "avoid": ["refined carbs", "sugary foods"],
+  "recommend": ["high protein diet", "low glycemic foods"]
+},
+
+"osteoporosis": {
+  "avoid": ["excess salt", "carbonated drinks"],
+  "recommend": ["calcium rich foods", "vitamin d"]
+},
+
+"arthritis": {
+  "avoid": ["processed foods", "sugary items"],
+  "recommend": ["anti inflammatory foods", "omega 3"]
+},
+
+"rheumatoid_arthritis": {
+  "avoid": ["red meat", "fried foods"],
+  "recommend": ["plant based foods", "omega 3 fatty acids"]
+},
+
+"low_immunity": {
+  "avoid": ["junk food", "excess sugar"],
+  "recommend": ["vitamin rich foods", "protein adequate diet"]
+},
+
+"fever_recovery": {
+  "avoid": ["heavy meals"],
+  "recommend": ["light nutritious foods", "hydration"]
+},
+
+"covid_recovery": {
+  "avoid": ["junk food", "dehydration"],
+  "recommend": ["protein rich diet", "vitamins", "hydration"]
+},
+
+"pregnancy": {
+  "avoid": ["raw foods", "excess caffeine"],
+  "recommend": ["balanced diet", "iron", "folic acid"]
+},
+"pcos": {
+  "avoid": ["sugar", "refined carbs"],
+  "recommend": ["high protein foods", "low glycemic diet"]
+},
+"thyroid": {
+  "avoid": ["soy", "processed food"],
+  "recommend": ["iodine rich foods", "balanced diet"]
+}
+}
+
