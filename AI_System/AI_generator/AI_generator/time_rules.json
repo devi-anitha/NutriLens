@@ -1,0 +1,14 @@
+{
+  "breakfast": {
+    "tip": "Eat light but energy rich foods."
+  },
+  "lunch": {
+    "tip": "Maintain a balanced meal."
+  },
+  "snacks": {
+    "tip": "Prefer low calorie snacks."
+  },
+  "dinner": {
+    "tip": "Avoid heavy carbs at night."
+  }
+}
