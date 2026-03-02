@@ -2,11 +2,10 @@ import os
 from dotenv import load_dotenv
 
 # -------------------- LOAD ENV --------------------
-# Make sure this file is in Backend/openai_api_key.env
-load_dotenv("openai_api_key.env")
+load_dotenv()  # Automatically loads Backend/.env
 
-OPENAI_KEY = os.getenv("OPENAI_API_KEY")
-print("🔑 OPENAI KEY LOADED:", bool(OPENAI_KEY))
+GROQ_KEY = os.getenv("GROQ_API_KEY")
+print("🔑 GROQ KEY LOADED:", bool(GROQ_KEY))
 
 
 def generate_ai_advice(
@@ -17,22 +16,21 @@ def generate_ai_advice(
     age: int
 ):
     """
-    Safe AI generator with fallback (RULES → AI)
+    Hybrid AI generator (Groq + Safe Rule Fallback)
     """
 
     # -------------------- NO KEY → RULE FALLBACK --------------------
-    if not OPENAI_KEY:
+    if not GROQ_KEY:
         return (
             "AI is not configured. Health rules were used to generate "
             "safe dietary recommendations."
         )
 
     try:
-        print("🔥 Calling OpenAI API...")
+        print("🔥 Calling Groq API...")
 
-        # ✅ Correct OpenAI client usage (new SDK)
-        from openai import OpenAI
-        client = OpenAI(api_key=OPENAI_KEY)
+        from groq import Groq
+        client = Groq(api_key=GROQ_KEY)
 
         prompt = f"""
 You are a friendly nutrition assistant.
@@ -57,24 +55,26 @@ Tasks:
 """
 
         response = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="llama-3.1-8b-instant",
             messages=[
                 {"role": "system", "content": "You are a nutrition expert."},
                 {"role": "user", "content": prompt}
             ],
             max_tokens=200,
+            temperature=0.4,
         )
 
         ai_text = response.choices[0].message.content.strip()
-        print("✅ OpenAI response received")
+        print("✅ Groq response received")
 
         return ai_text
 
     except Exception as e:
-        print("❌ OpenAI Error:", e)
+        print("❌ Groq Error:", e)
 
         # -------------------- FAILSAFE --------------------
         return (
             "AI analysis failed temporarily. "
             "Health rules were applied to ensure safe recommendations."
         )
+    

@@ -1,3 +1,16 @@
-Backend/openai_api_key.env.txt
+Backend/groqai_api_key.env
 .env
 *.env
+# Python cache
+__pycache__/
+*.pyc
+
+# Database
+*.db
+
+# Virtual env
+venv/
+
+# Node
+node_modules/
+dist/
