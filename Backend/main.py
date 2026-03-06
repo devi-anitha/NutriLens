@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
@@ -17,13 +17,16 @@ create_user_table()
 app = FastAPI(
     title="NutriLens API",
     description="AI-Enabled Nutrition Analysis Backend",
-    version="5.1 (FINAL)"
+    version="6.0 (PRODUCTION READY)"
 )
 
 # -------------------- CORS --------------------
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost:5173",   # Vite dev server
+        "http://127.0.0.1:5173"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -61,23 +64,29 @@ def root():
 # -------------------- USER PROFILE --------------------
 @app.post("/user/profile")
 def create_profile(profile: UserProfile):
-    conn = get_connection()
-    cursor = conn.cursor()
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
 
-    cursor.execute("""
-        INSERT INTO user_profile (name, age, gender, health_issues, primary_goal)
-        VALUES (?, ?, ?, ?, ?)
-    """, (
-        profile.name,
-        profile.age,
-        profile.gender,
-        json.dumps(profile.health_issues),
-        profile.primary_goal
-    ))
+        cursor.execute("""
+            INSERT INTO user_profile (name, age, gender, health_issues, primary_goal)
+            VALUES (?, ?, ?, ?, ?)
+        """, (
+            profile.name,
+            profile.age,
+            profile.gender,
+            json.dumps(profile.health_issues),
+            profile.primary_goal
+        ))
 
-    conn.commit()
-    conn.close()
-    return {"message": "User profile created successfully"}
+        conn.commit()
+        conn.close()
+
+        return {"message": "User profile created successfully"}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.get("/user/profile")
 def get_profile():
@@ -88,7 +97,7 @@ def get_profile():
     conn.close()
 
     if not row:
-        return {"message": "No profile found"}
+        raise HTTPException(status_code=404, detail="No profile found")
 
     return {
         "name": row[1],
@@ -104,7 +113,7 @@ def calculate_nutrients(data: IngredientsRequest):
     ingredients = [i.dict() for i in data.ingredients]
     return calculate_total_nutrients(ingredients)
 
-# -------------------- MEAL LOGGING --------------------
+# -------------------- MEAL LOGGING (Temporary In-Memory) --------------------
 MEAL_HISTORY = []
 
 @app.post("/meal/log")
@@ -124,9 +133,12 @@ def log_meal(data: IngredientsRequest):
 
 @app.get("/meal/history")
 def meal_history():
-    return {"total_meals": len(MEAL_HISTORY), "meals": MEAL_HISTORY}
+    return {
+        "total_meals": len(MEAL_HISTORY),
+        "meals": MEAL_HISTORY
+    }
 
-# -------------------- AI + RULE ENGINE (FINAL) --------------------
+# -------------------- AI + RULE ENGINE --------------------
 @app.post("/analyze-meal")
 def analyze_meal(data: IngredientsRequest):
     ingredients = [i.dict() for i in data.ingredients]
@@ -135,7 +147,7 @@ def analyze_meal(data: IngredientsRequest):
     nutrients = nutrient_result["total_nutrients"]
     meal_type = detect_meal_type()
 
-    # Fetch user profile
+    # Fetch latest user profile
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM user_profile ORDER BY id DESC LIMIT 1")
@@ -143,7 +155,7 @@ def analyze_meal(data: IngredientsRequest):
     conn.close()
 
     if not row:
-        return {"error": "User profile not found"}
+        raise HTTPException(status_code=404, detail="User profile not found")
 
     user_profile = {
         "name": row[1],
@@ -161,7 +173,7 @@ def analyze_meal(data: IngredientsRequest):
         nutrients=nutrients
     )
 
-    # -------------------- HYBRID AI STRATEGY --------------------
+    # AI analysis
     ai_message = generate_ai_advice(
         nutrients=nutrients,
         meal_type=meal_type,
@@ -170,15 +182,14 @@ def analyze_meal(data: IngredientsRequest):
         age=user_profile["age"]
     )
 
-    # 🔁 FALLBACK IF AI FAILS
-    if not ai_message or "unavailable" in ai_message.lower() or "error" in ai_message.lower():
+    # Hybrid fallback if AI fails
+    if not ai_message or len(ai_message.strip()) < 10:
         ai_message = (
             f"This {meal_type.lower()} meal was analyzed using health rules. "
             f"Recommended foods include: {', '.join(health_analysis.get('recommend', []))}. "
             f"{' '.join(health_analysis.get('notes', []))}"
         )
 
-    # -------------------- STANDARD RESPONSE --------------------
     return {
         "user_profile": user_profile,
         "meal_type": meal_type,
@@ -191,8 +202,8 @@ def analyze_meal(data: IngredientsRequest):
         "ai_message": ai_message
     }
 
+
 # -------------------- RUN --------------------
-# uvicorn main:app --reload
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
