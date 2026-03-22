@@ -8,10 +8,53 @@ export default function HistoryPage() {
   const [history, setHistory] = useState([]);
 
   useEffect(() => {
-    const savedHistory = JSON.parse(
-      localStorage.getItem("foodHistory") || "[]",
-    );
-    setHistory(savedHistory);
+    const fetchHistory = async () => {
+      try {
+        const creds = localStorage.getItem("userCredentials");
+        const user = creds ? JSON.parse(creds) : null;
+        if (!user) {
+           navigate("/auth");
+           return;
+        }
+        const response = await fetch("http://127.0.0.1:8000/meal/history/" + user.id);
+        if (response.ok) {
+          const data = await response.json();
+          // Transform backend format to frontend format
+          const formattedHistory = data.meals.reverse().map((meal, index) => {
+             // Basic fallback extraction for "food" naming since backend only has list of ingredients
+             const foodName = meal.ingredients.map(i => i.name).join(", ");
+             return {
+                id: index,
+                food: foodName,
+                date: meal.time.split(" ")[0],
+                time: meal.time.split(" ")[1],
+                calories: meal.nutrients.Calories || 0,
+                protein: meal.nutrients.Protein || 0,
+                carbs: meal.nutrients.Carbs || 0,
+                fat: meal.nutrients.Fat || 0,
+                fiber: meal.nutrients.Fiber || 0,
+                sodium: meal.nutrients.Sodium || 0,
+                warnings: meal.health_analysis?.notes || [],
+             };
+          });
+          setHistory(formattedHistory);
+          localStorage.setItem("foodHistory", JSON.stringify(formattedHistory));
+        } else {
+           const savedHistory = JSON.parse(
+             localStorage.getItem("foodHistory") || "[]",
+           );
+           setHistory(savedHistory);
+        }
+      } catch (error) {
+         console.error("Failed to fetch history:", error);
+         const savedHistory = JSON.parse(
+           localStorage.getItem("foodHistory") || "[]",
+         );
+         setHistory(savedHistory);
+      }
+    };
+
+    fetchHistory();
   }, []);
 
   const clearHistory = () => {

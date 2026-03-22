@@ -1,9 +1,10 @@
 import { useState } from "react";
 
+const API = "http://127.0.0.1:8000";
+
 export default function Auth() {
   const [mode, setMode] = useState("signin");
   const [otpSent, setOtpSent] = useState(false);
-  const [generatedOtp, setGeneratedOtp] = useState("");
 
   const [form, setForm] = useState({
     username: "",
@@ -17,40 +18,110 @@ export default function Auth() {
   const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
 
-  const sendOtp = () => {
-    if (form.mobile.length !== 10) {
-      alert("Enter valid mobile number");
-      return;
+  // ---------------- SEND OTP ----------------
+  const sendOtp = async () => {
+    try {
+      const res = await fetch(`${API}/auth/send-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          identifier: form.email || form.mobile,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail);
+
+      setOtpSent(true);
+      alert("OTP sent to your email");
+    } catch (err) {
+      alert(err.message);
     }
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    setGeneratedOtp(otp);
-    setOtpSent(true);
-    alert(`Demo OTP: ${otp}`);
   };
 
-  const signUp = () => {
-    if (!form.username || !form.mobile || !form.password) {
+  // ---------------- SIGN UP ----------------
+  const signUp = async () => {
+    if (!form.username || !form.mobile || !form.email || !form.password) {
       alert("Fill all fields");
       return;
     }
+
     if (form.password !== form.confirmPassword) {
       alert("Passwords do not match");
       return;
     }
-    if (form.otp !== generatedOtp) {
-      alert("Invalid OTP");
-      return;
+
+    try {
+      // verify OTP
+      const verifyRes = await fetch(`${API}/auth/verify-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          identifier: form.email,
+          otp: form.otp,
+        }),
+      });
+
+      if (!verifyRes.ok) {
+        const err = await verifyRes.json();
+        throw new Error(err.detail);
+      }
+
+      // signup
+      const res = await fetch(`${API}/auth/signup`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: form.username,
+          mobile: form.mobile,
+          email: form.email,
+          password: form.password,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail);
+
+      alert("✅ Account created successfully");
+      setMode("signin");
+
+    } catch (err) {
+      alert(err.message);
     }
-    alert("✅ Account created successfully");
   };
 
-  const signIn = () => {
-    if (!form.email || !form.password) {
-      alert("Enter credentials");
-      return;
-    }
-    alert("✅ Signed in");
-  };
+  // ---------------- SIGN IN (FIXED) ----------------
+  const signIn = async () => {
+  if (!form.email || !form.password) {
+    alert("Enter credentials");
+    return;
+  }
+
+  try {
+    const res = await fetch("http://127.0.0.1:8000/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        identifier: form.email,
+        password: form.password,
+      }),
+    });
+
+    if (!res.ok) throw new Error("Login failed");
+
+    const data = await res.json();
+
+    // 🔥 VERY IMPORTANT
+    localStorage.setItem("userCredentials", JSON.stringify(data.user));
+
+    alert("✅ Login successful");
+
+    window.location.href = "/dashboard";
+
+  } catch (err) {
+    alert("Login failed");
+  }
+};
 
   return (
     <div style={styles.page}>
@@ -60,12 +131,14 @@ export default function Auth() {
         {mode === "signin" ? (
           <>
             <h3>Sign In</h3>
+
             <input
               name="email"
-              placeholder="Email or Mobile"
+              placeholder="Email"
               onChange={handleChange}
               style={styles.input}
             />
+
             <input
               type="password"
               name="password"
@@ -73,9 +146,11 @@ export default function Auth() {
               onChange={handleChange}
               style={styles.input}
             />
+
             <button onClick={signIn} style={styles.primary}>
               Sign In
             </button>
+
             <p style={styles.link} onClick={() => setMode("signup")}>
               New user? Sign Up
             </p>
@@ -90,12 +165,21 @@ export default function Auth() {
               onChange={handleChange}
               style={styles.input}
             />
+
             <input
               name="mobile"
               placeholder="Mobile Number"
               onChange={handleChange}
               style={styles.input}
             />
+
+            <input
+              name="email"
+              placeholder="Email"
+              onChange={handleChange}
+              style={styles.input}
+            />
+
             <input
               type="password"
               name="password"
@@ -103,6 +187,7 @@ export default function Auth() {
               onChange={handleChange}
               style={styles.input}
             />
+
             <input
               type="password"
               name="confirmPassword"
@@ -113,7 +198,7 @@ export default function Auth() {
 
             {!otpSent ? (
               <button onClick={sendOtp} style={styles.secondary}>
-                Get OTP
+                Send OTP
               </button>
             ) : (
               <input

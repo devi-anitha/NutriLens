@@ -28,6 +28,14 @@ COL_CAL  = _find_col("caloric", "energy", "kcal")
 COL_PROT = _find_col("protein")
 COL_FAT  = _find_col("fat")
 COL_CARB = _find_col("carbohydrate", "carb")
+COL_FIBER = _find_col("fiber")
+COL_SUGAR = _find_col("sugar")
+COL_SODIUM = _find_col("sodium")
+COL_CHOL = _find_col("cholesterol")
+COL_VITC = _find_col("vit", "c", "vitamin") # Simple fallback
+COL_CALCIUM = _find_col("calcium")
+COL_IRON = _find_col("iron")
+COL_POTAS = _find_col("potassium")
 
 # -------------------- UNIT CONVERSION --------------------
 UNIT_TO_GRAMS = {
@@ -119,11 +127,23 @@ def scale(row, grams):
         "Protein":  round(get_val(row, COL_PROT) * factor, 2),
         "Fat":      round(get_val(row, COL_FAT) * factor, 2),
         "Carbs":    round(get_val(row, COL_CARB) * factor, 2),
+        "Fiber":    round(get_val(row, COL_FIBER) * factor, 2),
+        "Sugar":    round(get_val(row, COL_SUGAR) * factor, 2),
+        "Sodium":   round(get_val(row, COL_SODIUM) * factor, 2),
+        "Cholesterol": round(get_val(row, COL_CHOL) * factor, 2),
+        "Calcium":  round(get_val(row, COL_CALCIUM) * factor, 2),
+        "Iron":     round(get_val(row, COL_IRON) * factor, 2),
+        "Potassium": round(get_val(row, COL_POTAS) * factor, 2),
+        "Vitamin C": round(get_val(row, COL_VITC) * factor, 2),
     }
 
-# -------------------- MAIN FUNCTION --------------------
 def calculate_total_nutrients(ingredients):
-    total = {"Calories": 0, "Protein": 0, "Fat": 0, "Carbs": 0}
+    total = {
+        "Calories": 0, "Protein": 0, "Fat": 0, "Carbs": 0,
+        "Fiber": 0, "Sugar": 0, "Sodium": 0,
+        "Cholesterol": 0, "Calcium": 0, "Iron": 0,
+        "Potassium": 0, "Vitamin C": 0
+    }
     suggestions = {}
 
     for item in ingredients:
@@ -140,7 +160,8 @@ def calculate_total_nutrients(ingredients):
 
         scaled = scale(row, grams)
         for k in total:
-            total[k] += scaled[k]
+            if k in scaled:
+                total[k] += scaled[k]
 
         suggestions[name] = sugg
 

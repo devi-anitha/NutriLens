@@ -219,18 +219,18 @@ export function analyzeFood(food, conditions, lang = "en-US") {
   }
 
   // Condition based warnings
-  let damageScore = 0;
+  let DAMAGE_SCORE = 0;
 
   if (conditions.includes("Diabetes")) {
     if (carbs > 40 || text.includes("rice") || text.includes("sugar") || text.includes("sweet") || text.includes("soda")) {
       warnings.push(t.highCarbsDiabetes);
-      damageScore += 35;
+      DAMAGE_SCORE += 35;
     }
   }
   if (conditions.includes("BP")) {
     if (sodium > 400 || text.includes("biryani") || text.includes("pickle") || text.includes("papad") || text.includes("samosa")) {
       warnings.push(t.highSodiumBP);
-      damageScore += 35;
+      DAMAGE_SCORE += 35;
     }
   }
 
@@ -239,50 +239,50 @@ export function analyzeFood(food, conditions, lang = "en-US") {
   if (carbProteinRatio > 2.5) {
     insights.push(t.carbHeavy);
     suggestions.push(t.addProtein);
-    damageScore += 10;
+    DAMAGE_SCORE += 10;
   }
   if (fat > 15) {
     insights.push(t.highFat);
     suggestions.push(t.reduceOil);
-    damageScore += 15;
+    DAMAGE_SCORE += 15;
   }
   if (fiber < 3 && foundAny) {
     insights.push(t.lowFiber);
     suggestions.push(t.includeFiber);
-    damageScore += 5;
+    DAMAGE_SCORE += 5;
   }
   if (calories > 400) {
     insights.push(t.highCalorie);
     suggestions.push(t.portionControl);
-    damageScore += 10;
+    DAMAGE_SCORE += 10;
   }
 
   // General thresholds (Even more sensitive)
   if (sodium > 800) {
     warnings.push(t.veryHighSodium);
-    damageScore += 20;
+    DAMAGE_SCORE += 20;
   } else if (sodium > 500) {
     warnings.push(t.highSodium);
-    damageScore += 10;
+    DAMAGE_SCORE += 10;
   }
   
   if (fat > 20) {
     warnings.push(t.highFatWarning);
-    damageScore += 15;
+    DAMAGE_SCORE += 15;
   }
   
   if (carbs > 60) {
     warnings.push(t.highCarbWarning);
-    damageScore += 15;
+    DAMAGE_SCORE += 15;
   }
   
   if (calories > 600) {
     warnings.push(t.highCalorieWarning);
-    damageScore += 20;
+    DAMAGE_SCORE += 20;
   }
 
   // Cap damage score at 100
-  damageScore = Math.min(damageScore, 100);
+  DAMAGE_SCORE = Math.min(DAMAGE_SCORE, 100);
 
   // Multilingual Response Builder
   const format = (str, obj) => {

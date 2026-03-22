@@ -60,7 +60,7 @@ Tasks:
                 {"role": "system", "content": "You are a nutrition expert."},
                 {"role": "user", "content": prompt}
             ],
-            max_tokens=200,
+            max_tokens=800,
             temperature=0.4,
         )
 

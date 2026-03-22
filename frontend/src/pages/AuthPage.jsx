@@ -24,81 +24,151 @@ export default function AuthPage() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSendOTP = (e) => {
+  const handleSendOTP = async (e) => {
     e.preventDefault();
-    if (!formData.mobile || formData.mobile.length < 10) {
+    if (!formData.name || !formData.mobile || !formData.email || !formData.password) {
+      alert("Please fill in all fields.");
+      return;
+    }
+    if (formData.mobile.length < 10) {
       alert("Please enter a valid mobile number");
+      return;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      alert("Please enter a valid email address");
+      return;
+    }
+    if (formData.password.length < 6) {
+      alert("Password must be at least 6 characters long");
       return;
     }
     if (formData.password !== formData.confirmPassword) {
       alert("Passwords do not match!");
       return;
     }
-    // Simulate API call
-    setTimeout(() => {
-      setShowOTP(true);
-      alert(`OTP sent to ${formData.mobile}: 1234`); // Mock OTP
-    }, 1000);
+    
+    try {
+      const resp = await fetch("http://127.0.0.1:8000/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: formData.name,
+          mobile: formData.mobile,
+          email: formData.email,
+          password: formData.password
+        })
+      });
+      if (resp.ok) {
+        alert("Account created successfully!");
+        navigate("/health-profile"); // Force new users to fill profile
+      } else {
+        const err = await resp.json();
+        alert(err.detail || "Signup failed");
+      }
+    } catch {
+      alert("Network error. Please try again later.");
+    }
   };
 
   const handleVerifyAndSignup = (e) => {
     e.preventDefault();
-    if (formData.otp !== "1234") {
-      alert("Invalid OTP! (Try 1234)");
-      return;
-    }
-    // Store user credentials for login validation
-    const userCredentials = {
-      mobile: formData.mobile,
-      email: formData.email,
-      password: formData.password,
-      name: formData.name,
-    };
-    localStorage.setItem("userCredentials", JSON.stringify(userCredentials));
-
-    completeAuth(true);
+    // In our new flow, we just sign up directly without OTP, since user wants OTP specifically for password reset
+    // Or if we still want OTP for signup, it wasn't requested in backend API for signup. Let's just bypass the fake OTP step on signup
+    handleSendOTP(e);
   };
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    setLoginError(""); // Clear previous errors
+    setLoginError("");
 
-    const savedCreds = localStorage.getItem("userCredentials");
-    if (!savedCreds) {
-      setLoginError("No account found. Please sign up first.");
+    if (!formData.identifier || !formData.password) {
+      setLoginError("Please enter both identifier and password");
       return;
     }
 
-    const user = JSON.parse(savedCreds);
-    const inputId = formData.identifier;
-    const inputPass = formData.password;
-
-    // Check if identifier matches email, mobile, or name (simple check)
-    const isIdMatch =
-      inputId === user.mobile ||
-      inputId === user.email ||
-      inputId === user.name;
-    const isPassMatch = inputPass === user.password;
-
-    if (!isIdMatch || !isPassMatch) {
-      setLoginError("Incorrect username or password");
-      return;
+    try {
+      const resp = await fetch("http://127.0.0.1:8000/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          identifier: formData.identifier,
+          password: formData.password
+        })
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        localStorage.setItem("userCredentials", JSON.stringify(data.user));
+        localStorage.setItem("isLoggedIn", "true");
+        
+        // Check if profile exists
+        try {
+          const profResp = await fetch("http://127.0.0.1:8000/user/profile/" + data.user.id);
+          if (profResp.ok) {
+            navigate("/dashboard");
+          } else {
+            localStorage.setItem("isNewUser", "true");
+            navigate("/health-profile");
+          }
+        } catch {
+          navigate("/health-profile");
+        }
+      } else {
+        const err = await resp.json();
+        setLoginError(err.detail || "Login failed");
+      }
+    } catch {
+      setLoginError("Network error. Please try again later.");
     }
-
-    completeAuth(false);
   };
 
-  const handleForgotPw = (e) => {
+  const [resetStep, setResetStep] = useState(1); // 1: Send link, 2: Verify OTP & New Password
+  const [resetData, setResetData] = useState({ identifier: "", otp: "", newPassword: "" });
+
+  const handleForgotPw = async (e) => {
     e.preventDefault();
-    alert("Reset link sent to " + formData.identifier);
-    setIsForgotPw(false);
+    if (resetStep === 1) {
+      if (!resetData.identifier) return alert("Please enter identifier");
+      const resp = await fetch("http://127.0.0.1:8000/auth/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ identifier: resetData.identifier })
+      });
+      if (resp.ok) {
+        alert(`OTP sent to ${resetData.identifier} via email`);
+        setResetStep(2);
+      } else {
+        const err = await resp.json();
+        alert(err.detail || "Failed to send OTP");
+      }
+    } else {
+      if (!resetData.otp || resetData.newPassword.length < 6) return alert("Invalid OTP or password too short");
+      
+      const verifyResp = await fetch("http://127.0.0.1:8000/auth/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ identifier: resetData.identifier, otp: resetData.otp })
+      });
+      
+      if (!verifyResp.ok) return alert("Invalid OTP");
+
+      const resetResp = await fetch("http://127.0.0.1:8000/auth/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ identifier: resetData.identifier, new_password: resetData.newPassword })
+      });
+
+      if (resetResp.ok) {
+        alert("Password reset successfully!");
+        setIsForgotPw(false);
+        setResetStep(1);
+      } else {
+        alert("Failed to reset password");
+      }
+    }
   };
 
-  const completeAuth = (isNewUser) => {
-    localStorage.setItem("isLoggedIn", "true");
-    if (isNewUser) localStorage.setItem("isNewUser", "true");
-    navigate("/health-profile");
-  };
+  
 
   // FORGOT PASSWORD VIEW
   if (isForgotPw) {
@@ -108,31 +178,57 @@ export default function AuthPage() {
         <div className="auth-card">
           <button
             className="back-to-login"
-            onClick={() => setIsForgotPw(false)}
+            onClick={() => { setIsForgotPw(false); setResetStep(1); }}
           >
             &larr; Back to Login
           </button>
           <div className="auth-header">
             <h2 className="auth-title">Reset Password</h2>
             <p className="auth-subtitle">
-              Enter your email or mobile number to receive a reset link.
+              {resetStep === 1 ? "Enter your email or mobile number to receive a reset OTP." : "Enter OTP and your new password."}
             </p>
           </div>
           <form className="auth-form" onSubmit={handleForgotPw}>
-            <div className="input-wrapper">
-              <span className="input-icon">📧</span>
-              <input
-                className="auth-input"
-                type="text"
-                name="identifier"
-                placeholder="Email or Mobile Number"
-                value={formData.identifier}
-                onChange={handleChange}
-                required
-              />
-            </div>
+            {resetStep === 1 ? (
+              <div className="input-wrapper">
+                <span className="input-icon">📧</span>
+                <input
+                  className="auth-input"
+                  type="text"
+                  placeholder="Email or Mobile Number"
+                  value={resetData.identifier}
+                  onChange={(e) => setResetData({...resetData, identifier: e.target.value})}
+                  required
+                />
+              </div>
+            ) : (
+              <>
+                <div className="input-wrapper">
+                  <span className="input-icon">🔑</span>
+                  <input
+                    className="auth-input"
+                    type="text"
+                    placeholder="Enter OTP"
+                    value={resetData.otp}
+                    onChange={(e) => setResetData({...resetData, otp: e.target.value})}
+                    required
+                  />
+                </div>
+                <div className="input-wrapper">
+                  <span className="input-icon">🔒</span>
+                  <input
+                    className="auth-input"
+                    type="password"
+                    placeholder="New Password"
+                    value={resetData.newPassword}
+                    onChange={(e) => setResetData({...resetData, newPassword: e.target.value})}
+                    required
+                  />
+                </div>
+              </>
+            )}
             <button type="submit" className="auth-btn">
-              Send Reset Link
+              {resetStep === 1 ? "Send Reset OTP" : "Reset Password"}
             </button>
           </form>
         </div>
@@ -230,7 +326,7 @@ export default function AuthPage() {
                 </div>
 
                 <button type="submit" className="auth-btn">
-                  Send OTP &rarr;
+                  Create Account &rarr;
                 </button>
               </>
             )}

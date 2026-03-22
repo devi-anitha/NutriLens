@@ -4,12 +4,22 @@ from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
 import json
+import math
 
 from utils import calculate_total_nutrients
-from models import UserProfile
+from models import UserProfile, UserSignup, UserLogin, OTPRequest, OTPVerify, PasswordReset
 from database import create_user_table, get_connection
 from health_engine import analyze_health_rules
 from ai_engine import generate_ai_advice
+
+import os
+import smtplib
+from email.mime.text import MIMEText
+import random
+from dotenv import load_dotenv
+import sqlite3
+
+load_dotenv()
 
 # -------------------- INIT --------------------
 create_user_table()
@@ -17,31 +27,34 @@ create_user_table()
 app = FastAPI(
     title="NutriLens API",
     description="AI-Enabled Nutrition Analysis Backend",
-    version="6.0 (PRODUCTION READY)"
+    version="FINAL STABLE"
 )
 
 # -------------------- CORS --------------------
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:5173",   # Vite dev server
-        "http://127.0.0.1:5173"
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:5174",
+        "http://127.0.0.1:5174"
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# -------------------- DATA MODELS --------------------
+# -------------------- MODELS --------------------
 class Ingredient(BaseModel):
     name: str
     quantity: float
     unit: Optional[str] = "g"
 
 class IngredientsRequest(BaseModel):
+    user_id: Optional[int] = None
     ingredients: List[Ingredient]
 
-# -------------------- MEAL TYPE --------------------
+# -------------------- HELPERS --------------------
 def detect_meal_type():
     hour = datetime.now().hour
     if 5 <= hour < 11:
@@ -53,157 +66,362 @@ def detect_meal_type():
     else:
         return "Dinner"
 
+# 🔥 FIX: safe value for NaN / None
+def safe_value(val):
+    if val is None:
+        return 0
+    if isinstance(val, float) and (math.isnan(val) or math.isinf(val)):
+        return 0
+    return val
+
 # -------------------- ROOT --------------------
 @app.get("/")
 def root():
-    return {
-        "message": "NutriLens Backend Running ✅",
-        "status": "AI + Rules Hybrid Enabled"
-    }
+    return {"message": "NutriLens Backend Running ✅"}
 
-# -------------------- USER PROFILE --------------------
-@app.post("/user/profile")
-def create_profile(profile: UserProfile):
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
+# -------------------- OTP STORE --------------------
+OTP_STORE = {}
 
-        cursor.execute("""
-            INSERT INTO user_profile (name, age, gender, health_issues, primary_goal)
-            VALUES (?, ?, ?, ?, ?)
-        """, (
-            profile.name,
-            profile.age,
-            profile.gender,
-            json.dumps(profile.health_issues),
-            profile.primary_goal
-        ))
-
-        conn.commit()
-        conn.close()
-
-        return {"message": "User profile created successfully"}
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.get("/user/profile")
-def get_profile():
+# -------------------- AUTH --------------------
+@app.post("/auth/signup")
+def signup(data: UserSignup):
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM user_profile ORDER BY id DESC LIMIT 1")
+    try:
+        cursor.execute(
+            "INSERT INTO users (name, mobile, email, password) VALUES (?, ?, ?, ?)",
+            (data.name, data.mobile, data.email, data.password)
+        )
+        conn.commit()
+    except sqlite3.IntegrityError:
+        conn.close()
+        raise HTTPException(status_code=400, detail="User already exists")
+    conn.close()
+    return {"message": "User registered successfully"}
+
+@app.post("/auth/login")
+def login(data: UserLogin):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT * FROM users WHERE (email=? OR mobile=? OR name=?) AND password=?",
+        (data.identifier, data.identifier, data.identifier, data.password)
+    )
+    user = cursor.fetchone()
+    conn.close()
+
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    return {
+        "message": "Login successful",
+        "user": {"id": user[0], "name": user[1], "email": user[3]}
+    }
+
+# -------------------- OTP --------------------
+@app.post("/auth/send-otp")
+def send_otp(data: OTPRequest):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT email FROM users WHERE email=? OR mobile=?",
+        (data.identifier, data.identifier)
+    )
+    user = cursor.fetchone()
+    conn.close()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user_email = user[0]
+    otp = str(random.randint(1000, 9999))
+    OTP_STORE[data.identifier] = otp
+
+    email_user = os.getenv("EMAIL_USER")
+    email_pass = os.getenv("EMAIL_PASSWORD")
+
+    try:
+        msg = MIMEText(f"Your NutriLens OTP is: {otp}")
+        msg["Subject"] = "NutriLens OTP"
+        msg["From"] = email_user
+        msg["To"] = user_email
+
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+            server.login(email_user, email_pass)
+            server.sendmail(email_user, user_email, msg.as_string())
+
+        print("✅ OTP sent:", otp)
+
+    except Exception as e:
+        print("❌ Email failed:", e)
+        print("DEV MODE OTP:", otp)
+
+    return {"message": "OTP sent"}
+
+@app.post("/auth/verify-otp")
+def verify_otp(data: OTPVerify):
+    if OTP_STORE.get(data.identifier) != data.otp:
+        raise HTTPException(status_code=400, detail="Invalid OTP")
+    return {"message": "OTP verified"}
+
+@app.post("/auth/reset-password")
+def reset_password(data: PasswordReset):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute(
+        "UPDATE users SET password=? WHERE email=? OR mobile=?",
+        (data.new_password, data.identifier, data.identifier)
+    )
+
+    if cursor.rowcount == 0:
+        conn.close()
+        raise HTTPException(status_code=404, detail="User not found")
+
+    conn.commit()
+    conn.close()
+
+    OTP_STORE.pop(data.identifier, None)
+    return {"message": "Password reset successful"}
+
+# -------------------- PROFILE --------------------
+@app.post("/user/profile")
+def create_profile(profile: UserProfile):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        INSERT INTO user_profile (user_id, name, age, gender, health_issues, primary_goal)
+        VALUES (?, ?, ?, ?, ?, ?)
+    """, (
+        profile.user_id,
+        profile.name,
+        profile.age,
+        profile.gender,
+        json.dumps(profile.health_issues or []),
+        profile.primary_goal
+    ))
+
+    conn.commit()
+    conn.close()
+
+    return {"message": "Profile saved"}
+
+@app.get("/user/profile/{user_id}")
+def get_profile(user_id: int):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute(
+        "SELECT id, user_id, name, age, gender, health_issues, primary_goal FROM user_profile WHERE user_id=? ORDER BY id DESC LIMIT 1",
+        (user_id,)
+    )
     row = cursor.fetchone()
     conn.close()
 
     if not row:
         raise HTTPException(status_code=404, detail="No profile found")
 
+    try:
+        health_issues = json.loads(row[5]) if row[5] else []
+    except:
+        health_issues = []
+
     return {
-        "name": row[1],
-        "age": row[2],
-        "gender": row[3],
-        "health_issues": json.loads(row[4]),
-        "primary_goal": row[5]
+        "user_id": row[1],
+        "name": row[2],
+        "age": row[3],
+        "gender": row[4],
+        "health_issues": health_issues,
+        "primary_goal": row[6]
     }
 
-# -------------------- NUTRIENTS ONLY --------------------
-@app.post("/calculate-nutrients")
-def calculate_nutrients(data: IngredientsRequest):
-    ingredients = [i.dict() for i in data.ingredients]
-    return calculate_total_nutrients(ingredients)
-
-# -------------------- MEAL LOGGING (Temporary In-Memory) --------------------
-MEAL_HISTORY = []
-
-@app.post("/meal/log")
-def log_meal(data: IngredientsRequest):
-    ingredients = [i.dict() for i in data.ingredients]
-    nutrient_result = calculate_total_nutrients(ingredients)
-
-    entry = {
-        "time": datetime.now().strftime("%Y-%m-%d %H:%M"),
-        "meal_type": detect_meal_type(),
-        "ingredients": ingredients,
-        "nutrients": nutrient_result["total_nutrients"]
-    }
-
-    MEAL_HISTORY.append(entry)
-    return {"message": "Meal logged successfully 🍽️", "data": entry}
-
-@app.get("/meal/history")
-def meal_history():
-    return {
-        "total_meals": len(MEAL_HISTORY),
-        "meals": MEAL_HISTORY
-    }
-
-# -------------------- AI + RULE ENGINE --------------------
-@app.post("/analyze-meal")
-def analyze_meal(data: IngredientsRequest):
-    ingredients = [i.dict() for i in data.ingredients]
-
-    nutrient_result = calculate_total_nutrients(ingredients)
-    nutrients = nutrient_result["total_nutrients"]
-    meal_type = detect_meal_type()
-
-    # Fetch latest user profile
+# -------------------- MEAL HISTORY --------------------
+@app.get("/meal/history/{user_id}")
+def meal_history(user_id: int):
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM user_profile ORDER BY id DESC LIMIT 1")
+
+    cursor.execute("SELECT * FROM meal_history WHERE user_id=?", (user_id,))
+    rows = cursor.fetchall()
+    conn.close()
+
+    if not rows:
+        return {"total_meals": 0, "meals": []}
+
+    meals = []
+    for row in rows:
+        meals.append({
+            "id": row[0],
+            "time": row[2],
+            "meal_type": row[3],
+            "ingredients": json.loads(row[4]),
+            "nutrients": json.loads(row[5]),
+            "health_analysis": json.loads(row[6]) if row[6] else {},
+            "recommendations": json.loads(row[7]) if row[7] else {},
+            "ai_message": row[8]
+        })
+
+    return {"total_meals": len(meals), "meals": meals}
+
+# -------------------- ANALYZE MEAL --------------------
+# -------------------- ANALYZE MEAL --------------------
+@app.post("/analyze-meal")
+def analyze_meal(data: IngredientsRequest, lang: str = "en-US"):
+    LANG_MAP = {
+        "en-US": "English",
+        "hi-IN": "Hindi",
+        "te-IN": "Telugu",
+        "ta-IN": "Tamil",
+        "kn-IN": "Kannada",
+        "ml-IN": "Malayalam",
+        "bn-IN": "Bengali"
+    }
+
+    ingredients = [i.dict() for i in data.ingredients]
+
+    nutrients = calculate_total_nutrients(ingredients)["total_nutrients"]
+
+    # 🔥 FIX: remove NaN
+    nutrients = {k: safe_value(v) for k, v in nutrients.items()}
+
+    meal_type = detect_meal_type()
+
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT id, user_id, name, age, gender, health_issues, primary_goal FROM user_profile WHERE user_id=? ORDER BY id DESC LIMIT 1",
+        (data.user_id,)
+    )
     row = cursor.fetchone()
     conn.close()
 
     if not row:
         raise HTTPException(status_code=404, detail="User profile not found")
 
-    user_profile = {
-        "name": row[1],
-        "age": row[2],
-        "gender": row[3],
-        "health_issues": json.loads(row[4]),
-        "primary_goal": row[5]
-    }
+    try:
+        health_issues = json.loads(row[5]) if row[5] else []
+    except:
+        health_issues = []
 
-    # Rule-based analysis
     health_analysis = analyze_health_rules(
-        health_issues=user_profile["health_issues"],
-        meal_type=meal_type,
-        ingredients=ingredients,
-        nutrients=nutrients
+        health_issues,
+        meal_type,
+        ingredients,
+        nutrients
     )
 
-    # AI analysis
-    ai_message = generate_ai_advice(
-        nutrients=nutrients,
-        meal_type=meal_type,
-        health_issues=user_profile["health_issues"],
-        primary_goal=user_profile["primary_goal"],
-        age=user_profile["age"]
+    # ---------------- LANGUAGE ----------------
+    actual_lang = lang if lang in LANG_MAP else "en-US"
+    lang_name = LANG_MAP.get(actual_lang)
+
+    # ---------------- STEP 1: ENGLISH GENERATION ----------------
+    base_goal = f"{row[6] if row[6] else 'Healthy Living'}. Give a complete and detailed response in English. Do NOT cut off the answer."
+
+    ai_message_english = generate_ai_advice(
+        nutrients,
+        meal_type,
+        health_issues,
+        base_goal,
+        row[3]
     )
 
-    # Hybrid fallback if AI fails
-    if not ai_message or len(ai_message.strip()) < 10:
-        ai_message = (
-            f"This {meal_type.lower()} meal was analyzed using health rules. "
-            f"Recommended foods include: {', '.join(health_analysis.get('recommend', []))}. "
-            f"{' '.join(health_analysis.get('notes', []))}"
-        )
+    if not ai_message_english:
+        ai_message_english = "Basic health analysis completed."
+
+    ai_message = ai_message_english
+
+    # ---------------- STEP 2: STRICT TRANSLATION ----------------
+    if lang_name != "English":
+        try:
+            from groq import Groq
+
+            groq_key = os.getenv("GROQ_API_KEY")
+            if groq_key:
+                client = Groq(api_key=groq_key)
+
+                # 🔥 FIXED PROMPT (STRICT)
+                translation_prompt = f"""
+You are a STRICT translator.
+
+Translate the following English text into {lang_name}.
+
+RULES:
+- Do NOT change meaning
+- Do NOT rephrase
+- Do NOT summarize
+- Do NOT add new advice
+- Do NOT remove anything
+- Keep tone EXACTLY same
+- Translate line by line
+
+IMPORTANT:
+This is ONLY translation. Do NOT act as a nutrition expert.
+
+TEXT:
+{ai_message_english}
+"""
+
+                response = client.chat.completions.create(
+                    model="llama-3.1-8b-instant",
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": f"You are a strict translation engine. Only translate into {lang_name}. Never modify meaning."
+                        },
+                        {"role": "user", "content": translation_prompt}
+                    ],
+                    max_tokens=800,
+                    temperature=0.2
+                )
+
+                translated_text = response.choices[0].message.content.strip()
+
+                # 🔥 SAFETY CHECK (VERY IMPORTANT)
+                if translated_text and len(translated_text) > len(ai_message_english) * 0.5:
+                    ai_message = translated_text
+                else:
+                    ai_message = ai_message_english
+
+        except Exception as e:
+            print("❌ Translation Error:", e)
+            ai_message = ai_message_english
+
+    # ---------------- SAVE ----------------
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        INSERT INTO meal_history (user_id, time, meal_type, ingredients, nutrients, health_analysis, recommendations, ai_message)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    """, (
+        data.user_id,
+        datetime.now().strftime("%Y-%m-%d %H:%M"),
+        meal_type,
+        json.dumps(ingredients),
+        json.dumps(nutrients),
+        json.dumps(health_analysis),
+        json.dumps({
+            "avoid": health_analysis.get("avoid", []),
+            "add": health_analysis.get("recommend", [])
+        }),
+        ai_message
+    ))
+
+    conn.commit()
+    conn.close()
 
     return {
-        "user_profile": user_profile,
         "meal_type": meal_type,
         "nutrients": nutrients,
         "health_analysis": health_analysis,
         "recommendations": {
-            "avoid": health_analysis.get("avoid", []),
-            "add": health_analysis.get("recommend", [])
+            "add": health_analysis.get("recommend", []),
+            "avoid": health_analysis.get("avoid", [])
         },
         "ai_message": ai_message
     }
 
-
 # -------------------- RUN --------------------
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("main:app", reload=True)

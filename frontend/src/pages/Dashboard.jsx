@@ -5,26 +5,55 @@ import "../styles/global.css";
 
 export default function Dashboard() {
   const navigate = useNavigate();
+
   const [foodInput, setFoodInput] = useState("");
   const [greeting, setGreeting] = useState("Good Morning");
   const [healthProfile, setHealthProfile] = useState({ conditions: [] });
   const [isListening, setIsListening] = useState(false);
-  const [lang, setLang] = useState("en-US");
+  const [lang, setLang] = useState(() => localStorage.getItem("selectedLang") || "en-US");
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
+  const UI_TEXT = {
+    "en-US": { welcome: "Welcome Back", track: "Let's track your nutrition.", profile: "Active Health Profile", empty: "No conditions set", what: "What did you eat today?", btn: "Analyze Meal ⚡", load: "Analyzing Intelligence..." },
+    "hi-IN": { welcome: "वापसी पर स्वागत है", track: "आइए अपने पोषण को ट्रैक करें।", profile: "सक्रिय स्वास्थ्य प्रोफ़ाइल", empty: "कोई शर्त निर्धारित नहीं", what: "आज आपने क्या खाया?", btn: "भोजन का विश्लेषण करें ⚡", load: "विश्लेषण किया जा रहा है..." },
+    "te-IN": { welcome: "స్వాగతం", track: "మీ పోషణను ట్రాక్ చేద్దాం.", profile: "క్రియాశీల ఆరోగ్య ప్రొఫైల్", empty: "ఎటువంటి పరిస్థితులు లేవు", what: "ఈ రోజు మీరు ఏమి తిన్నారు?", btn: "భోజనాన్ని విశ్లేషించండి ⚡", load: "విశ్లేషిస్తోంది..." },
+    "ta-IN": { welcome: "நல்வரவு", track: "உங்கள் உணவை கண்காணிக்கலாம்.", profile: "செயலில் உள்ள சுகாதார சுயவிவரம்", empty: "நிபந்தனைகள் அமைக்கப்படவில்லை", what: "இன்று நீங்கள் என்ன சாப்பிட்டீர்கள்?", btn: "உணவை பகுப்பாய்வு செய் ⚡", load: "பகுப்பாய்வு நடக்கிறது..." },
+    "kn-IN": { welcome: "ಸ್ವಾಗತ", track: "ನಿಮ್ಮ ಪೋಷಣೆಯನ್ನು ಟ್ರ್ಯಾಕ್ ಮಾಡೋಣ.", profile: "ಸಕ್ರಿಯ ಆರೋಗ್ಯ ಪ್ರೊಫೈಲ್", empty: "ಯಾವುದೇ ಷರತ್ತುಗಳಿಲ್ಲ", what: "ಇಂದು ನೀವು ಏನು ತಿಂದಿದ್ದೀರಿ?", btn: "ಊಟವನ್ನು ವಿಶ್ಲೇಷಿಸಿ ⚡", load: "ವಿಶ್ಲೇಷಿಸಲಾಗುತ್ತಿದೆ..." },
+    "ml-IN": { welcome: "സ്വാഗതം", track: "നിങ്ങളുടെ പോഷണം ട്രാക്ക് ചെയ്യാം.", profile: "സജീവ ആരോഗ്യ പ്രൊഫൈൽ", empty: "വ്യവസ്ഥകളൊന്നും സജ്ജമാക്കിയിട്ടില്ല", what: "ഇന്ന് നിങ്ങൾ എന്താണ് കഴിച്ചത്?", btn: "ഭക്ഷണം വിശകലനം ചെയ്യുക ⚡", load: "വിശകലനം ചെയ്യുന്നു..." },
+    "bn-IN": { welcome: "স্বাগতম", track: "আপনার পুষ্টি ট্র্যাক করুন।", profile: "সক্রিয় স্বাস্থ্য প্রোফাইল", empty: "কোন শর্ত নেই", what: "আজ আপনি কি খেয়েছেন?", btn: "খাবার বিশ্লেষণ করুন ⚡", load: "বিশ্লেষণ করা হচ্ছে..." }
+  };
+  const t = UI_TEXT[lang] || UI_TEXT["en-US"];
+
+  const handleLangChange = (e) => {
+    const newLang = e.target.value;
+    setLang(newLang);
+    localStorage.setItem("selectedLang", newLang);
+  };
+
+
+  // ---------------- LOAD DATA ----------------
   useEffect(() => {
-    // Set greeting based on time
     const hour = new Date().getHours();
     if (hour < 12) setGreeting("Good Morning");
     else if (hour < 18) setGreeting("Good Afternoon");
     else setGreeting("Good Evening");
 
-    // Load profile
     const savedProfile = localStorage.getItem("healthProfile");
+
     if (savedProfile) {
-      setHealthProfile(JSON.parse(savedProfile));
+      try {
+        const parsed = JSON.parse(savedProfile);
+        setHealthProfile({
+          conditions: parsed?.conditions || parsed?.health_issues || [],
+        });
+      } catch (e) {
+        console.error("Profile parse error", e);
+        setHealthProfile({ conditions: [] });
+      }
     }
   }, []);
 
+  // ---------------- VOICE ----------------
   const startListening = () => {
     if (
       !("webkitSpeechRecognition" in window) &&
@@ -36,47 +65,110 @@ export default function Dashboard() {
 
     const SpeechRecognition =
       window.SpeechRecognition || window.webkitSpeechRecognition;
+
     const recognition = new SpeechRecognition();
     recognition.lang = lang;
-    recognition.continuous = false;
-    recognition.interimResults = false;
 
     recognition.onstart = () => setIsListening(true);
     recognition.onend = () => setIsListening(false);
-    recognition.onerror = (event) => {
-      console.error(event.error);
-      setIsListening(false);
-    };
 
     recognition.onresult = (event) => {
       const transcript = event.results[0][0].transcript;
-      setFoodInput(transcript);
-
-      // Automatically trigger analysis after speaking
-      if (transcript.trim()) {
-        localStorage.setItem("food", transcript);
-        localStorage.setItem("selectedLang", lang);
-
-        // Brief delay so user can see their spoken text before redirect
-        setTimeout(() => {
-          navigate("/result");
-        }, 800);
-      }
+      setFoodInput((prev) => (prev ? prev + " " + transcript : transcript));
     };
 
     recognition.start();
   };
 
-  const handleAnalyze = () => {
-    if (!foodInput.trim()) {
+  // ---------------- ANALYZE ----------------
+  const executeAnalysis = async (text) => {
+    if (!text.trim()) {
       alert("Please enter what you ate!");
       return;
     }
-    localStorage.setItem("food", foodInput);
-    localStorage.setItem("selectedLang", lang); // Save selected language
-    navigate("/result");
+
+    setIsAnalyzing(true);
+
+    const foods = text
+      .toLowerCase()
+      .split(/,|and/)
+      .map((f) => f.trim())
+      .filter(Boolean);
+
+    const ingredients = foods.map((name) => ({
+      name,
+      quantity: 100,
+      unit: "g",
+    }));
+
+    try {
+      const creds = localStorage.getItem("userCredentials");
+      const user = creds ? JSON.parse(creds) : null;
+
+      if (!user) {
+        alert("Please login again");
+        navigate("/auth");
+        return;
+      }
+
+      const response = await fetch(`http://127.0.0.1:8000/analyze-meal?lang=${lang}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          user_id: user.id,
+          ingredients,
+        }),
+      });
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          alert("Profile missing! Please set up your Health Profile first.");
+          navigate("/health-profile");
+          return;
+        }
+        throw new Error("Backend error");
+      }
+
+      const result = await response.json();
+
+      const formattedData = {
+        food: ingredients.map((i) => i.name).join(", "),
+        calories: result.nutrients?.Calories || 0,
+        protein: result.nutrients?.Protein || 0,
+        carbs: result.nutrients?.Carbs || 0,
+        fat: result.nutrients?.Fat || 0,
+        fiber: result.nutrients?.Fiber || 0,
+        sodium: result.nutrients?.Sodium || 0,
+        sugar: result.nutrients?.Sugar || 0,
+        cholesterol: result.nutrients?.Cholesterol || 0,
+        calcium: result.nutrients?.Calcium || 0,
+        iron: result.nutrients?.Iron || 0,
+        potassium: result.nutrients?.Potassium || 0,
+        vitaminC: result.nutrients?.["Vitamin C"] || 0,
+        warnings: result.health_analysis?.notes || [],
+        suggestions: result.recommendations?.add || [],
+        speechText: result.ai_message || "Here is your meal analysis.",
+      };
+
+      navigate("/result", {
+        state: { data: formattedData, lang },
+      });
+
+    } catch (e) {
+      console.error(e);
+      alert("Analysis failed. Please try again.");
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
+  const handleAnalyze = () => {
+    executeAnalysis(foodInput);
+  };
+
+  // ---------------- QUICK ADD ----------------
   const quickAdds = [
     { emoji: "🥗", text: "Caesar Salad with Chicken" },
     { emoji: "🍳", text: "2 Eggs, Toast, and Coffee" },
@@ -84,182 +176,128 @@ export default function Dashboard() {
     { emoji: "🥤", text: "Protein Shake with Banana" },
   ];
 
+  // ---------------- UI ----------------
   return (
-    <div className="dashboard-container">
-      {/* Navbar */}
-      <nav className="dashboard-nav">
-        <div className="nav-logo">NUTRILENS 🥗</div>
-        <div style={{ display: "flex", gap: "10px" }}>
-          <button
-            className="nav-profile-btn"
-            onClick={() => navigate("/history")}
-            style={{
-              background: "rgba(15, 23, 42, 0.05)",
-              border: "1px solid rgba(15, 23, 42, 0.1)",
-              color: "var(--dark)",
-            }}
-          >
-            <span>📜 History</span>
-          </button>
-          <button
-            className="nav-profile-btn"
-            onClick={() => navigate("/health-profile")}
-          >
-            <span>👤 My Profile</span>
-          </button>
-        </div>
-      </nav>
+    <>
+      <div className="bg-blob bg-blob-1"></div>
+      <div className="bg-blob bg-blob-2"></div>
+      
+      <div className="dashboard-container">
+        <nav className="dashboard-nav">
+          <div className="nav-logo">NUTRILENS 🥗</div>
 
-      <div className="dashboard-content">
-        {/* Left Side: Welcome & Context */}
-        <div className="dashboard-left">
-          <div className="greeting-card">
-            <div className="greeting-time">{greeting}</div>
-            <h1 className="greeting-title">
-              Ready to track your
-              <br />
-              <span>Nutrition Journey?</span>
-            </h1>
-            <p
-              style={{
-                color: "var(--gray)",
-                fontSize: "1.1rem",
-                lineHeight: "1.6",
-              }}
+          <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+            <select 
+              value={lang} 
+              onChange={handleLangChange} 
+              style={{ padding: "6px", borderRadius: "8px", border: "1px solid #ccc", outline: "none", cursor: "pointer", background: "white", fontSize: "0.9rem" }}
             >
-              Simply describe your meal, and our AI will analyze the calories,
-              macros, and check for any health warnings based on your profile.
-            </p>
-          </div>
+              <option value="en-US">English</option>
+              <option value="hi-IN">Hindi (हिंदी)</option>
+              <option value="te-IN">Telugu (తెలుగు)</option>
+              <option value="ta-IN">Tamil (தமிழ்)</option>
+              <option value="kn-IN">Kannada (ಕನ್ನಡ)</option>
+              <option value="ml-IN">Malayalam (മലയാളം)</option>
+              <option value="bn-IN">Bengali (বাংলা)</option>
+            </select>
 
-          <div className="health-summary">
-            <span className="health-label">Active Health Profile</span>
-            <div className="condition-tags">
-              {healthProfile.conditions.length > 0 ? (
-                healthProfile.conditions.map((c, i) => (
-                  <span key={i} className="condition-tag">
-                    {c}
+            <button
+              className="nav-profile-btn"
+              onClick={() => navigate("/history")}
+            >
+              📜 History
+            </button>
+
+            <button
+              className="nav-profile-btn"
+              onClick={() => navigate("/health-profile")}
+            >
+              👤 My Profile
+            </button>
+          </div>
+        </nav>
+
+        <div className="dashboard-content">
+          {/* LEFT */}
+          <div className="dashboard-left">
+            <div className="greeting-card">
+              <div className="greeting-time">{t.welcome}</div>
+              <h1 className="greeting-title">
+                {greeting}, <span>{t.track}</span>
+              </h1>
+            </div>
+
+            <div className="health-summary">
+              <span className="health-label">{t.profile}</span>
+
+              <div className="condition-tags">
+                {healthProfile?.conditions?.length > 0 ? (
+                  healthProfile.conditions.map((c, i) => (
+                    <span key={i} className="condition-tag">
+                      {c}
+                    </span>
+                  ))
+                ) : (
+                  <span className="condition-tag" style={{ background: "#f8fafc", color: "#64748b" }}>
+                    {t.empty}
                   </span>
-                ))
-              ) : (
-                <span
-                  className="condition-tag"
-                  style={{
-                    background: "#f1f5f9",
-                    color: "#64748b",
-                    border: "none",
-                  }}
-                >
-                  No conditions set
-                </span>
-              )}
-              <button
-                onClick={() => navigate("/health-profile")}
-                style={{
-                  background: "none",
-                  border: "none",
-                  color: "var(--primary)",
-                  fontSize: "0.8rem",
-                  cursor: "pointer",
-                  textDecoration: "underline",
-                }}
-              >
-                Edit
-              </button>
+                )}
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Right Side: Analysis Card */}
-        <div className="dashboard-right">
-          <div className="analysis-card">
-            <div className="input-group">
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                }}
-              >
-                <label className="input-label">What's on your plate?</label>
-                <div
-                  style={{ display: "flex", gap: "10px", alignItems: "center" }}
+          {/* RIGHT */}
+          <div className="dashboard-right">
+            <div className="analysis-card">
+              <div className="input-label">
+                {t.what}
+                <button 
+                  className="voice-btn-mini" 
+                  onClick={startListening}
+                  title="Use Voice Input"
                 >
-                  <select
-                    value={lang}
-                    onChange={(e) => setLang(e.target.value)}
-                    style={{
-                      padding: "5px",
-                      borderRadius: "8px",
-                      border: "1px solid #ccc",
-                      fontSize: "0.85rem",
-                      cursor: "pointer",
-                      outline: "none",
-                    }}
-                  >
-                    <option value="en-US">English</option>
-                    <option value="hi-IN">Hindi (हिंदी)</option>
-                    <option value="te-IN">Telugu (తెలుగు)</option>
-                  </select>
-                  <button
-                    className={`voice-btn-mini ${isListening ? "listening" : ""}`}
-                    onClick={startListening}
-                    title="Use Voice Input"
-                    style={{
-                      background: isListening ? "#ef4444" : "var(--primary)",
-                      color: "white",
-                      border: "none",
-                      width: "32px",
-                      height: "32px",
-                      borderRadius: "50%",
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      transition: "all 0.3s ease",
-                    }}
-                  >
-                    {isListening ? "⬛" : "🎤"}
-                  </button>
-                </div>
+                  {isListening ? "🎙️" : "🎤"}
+                </button>
               </div>
+
               <textarea
                 className="food-textarea"
-                placeholder="e.g. I had a bowl of oatmeal with blueberries and almonds..."
+                placeholder="E.g., 2 slices of whole wheat bread, 1 avocado, and a cup of black coffee..."
                 value={foodInput}
                 onChange={(e) => setFoodInput(e.target.value)}
               />
-            </div>
 
-            <div className="action-buttons">
-              <button className="analyze-btn" onClick={handleAnalyze}>
-                <span>Analyze Meal</span>
-                <span>✨</span>
-              </button>
-            </div>
+              <div className="action-buttons">
+                <button 
+                  className="analyze-btn" 
+                  onClick={handleAnalyze} 
+                  disabled={isAnalyzing}
+                >
+                  {isAnalyzing ? t.load : t.btn}
+                </button>
+              </div>
 
-            <div className="recent-section">
-              <div className="recent-title">Quick Add</div>
-              <div className="recent-chips">
-                {quickAdds.map((item, index) => (
-                  <button
-                    key={index}
-                    className="recent-chip"
-                    onClick={() => {
-                      setFoodInput(item.text);
-                      localStorage.setItem("food", item.text);
-                      localStorage.setItem("selectedLang", lang);
-                      setTimeout(() => navigate("/result"), 500);
-                    }}
-                  >
-                    {item.emoji} {item.text.split(" ").slice(0, 2).join(" ")}...
-                  </button>
-                ))}
+              <div className="recent-section">
+                <div className="recent-title">Quick Add</div>
+                <div className="recent-chips">
+                  {quickAdds.map((item, i) => (
+                    <button
+                      key={i}
+                      className="recent-chip"
+                      onClick={() => {
+                        setFoodInput(item.text);
+                        // executeAnalysis(item.text); // auto-submit if desired, currently sets text
+                      }}
+                    >
+                      {item.emoji} {item.text}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
