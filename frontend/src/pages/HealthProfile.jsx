@@ -12,7 +12,16 @@ const CONDITIONS = [
   "PCOS","Pregnancy","Food Allergy","Lactose Intolerance","Celiac Disease",
   "Gout","Stroke History","Cancer History","Hypertension","Hypothyroidism",
   "Hyperthyroidism","Vitamin D Deficiency","Vitamin B12 Deficiency",
-  "Smoking","Alcohol Consumption","Post Surgery Recovery"
+  "Smoking","Alcohol Consumption","Post Surgery Recovery", "Lupus", "Multiple Sclerosis",
+  "Psoriasis", "Crohn’s Disease", "Ulcerative Colitis", "COPD", "Cystic Fibrosis", "Atrial Fibrillation",
+  "Atherosclerosis", "Varicose Veins", "Epilepsy", "Parkinson’s Disease", "Alzheimer’s", "Dementia",
+  "ADHD", "PTSD", "Bipolar Disorder", "Metabolic Syndrome", "Endometriosis", "Addison’s Disease",
+  "Cushing’s Syndrome", "Chronic Fatigue Syndrome", "Fibromyalgia", "Fatty Liver Disease",
+  "Gallstones", "Insomnia", "Eczema", "Cataracts", "Glaucoma", "Sleep Walking",
+  "Restless Leg Syndrome", "Chronic Bronchitis", "Emphysema", "Scoliosis", "Herniated Disc",
+  "Sciatica", "Erectile Dysfunction", "Infertility", "Menopause Symptoms", 
+  "Pelvic Inflammatory Disease", "Chronic Kidney Disease", "Kidney Stones",
+  "Urinary Tract Infection", "Pancreatitis", "Adrenal Fatigue", "Histamine Intolerance", "cancer", "fractured", "stitched", "weight loss", "weight gain"
 ];
 
 export default function HealthProfile() {
@@ -22,6 +31,8 @@ export default function HealthProfile() {
     name: "",
     dob: "",
     gender: "",
+    height: "",
+    weight: "",
     conditions: [],
   });
 
@@ -47,8 +58,10 @@ export default function HealthProfile() {
 
           setForm({
             name: data.name || "",
-            dob: estimatedDob,
+            dob: data.dob || estimatedDob,
             gender: data.gender || "",
+            height: data.height || "",
+            weight: data.weight || "",
             conditions: data.health_issues || [],
           });
 
@@ -97,8 +110,11 @@ export default function HealthProfile() {
       const payload = {
         user_id: user.id,
         name: form.name || "User",
+        dob: form.dob || null,
         age: age,
         gender: form.gender || "Other",
+        height: form.height ? parseFloat(form.height) : null,
+        weight: form.weight ? parseFloat(form.weight) : null,
         health_issues: form.conditions || [],
         primary_goal: "General Health",
       };
@@ -171,6 +187,28 @@ export default function HealthProfile() {
               <option>Female</option>
               <option>Other</option>
             </select>
+          </div>
+
+          <div className="input-group">
+            <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "600", fontSize: "0.95rem" }}>Height (cm)</label>
+            <input
+              className="input-field"
+              type="number"
+              placeholder="e.g. 175"
+              value={form.height}
+              onChange={(e) => setForm({ ...form, height: e.target.value })}
+            />
+          </div>
+
+          <div className="input-group">
+            <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "600", fontSize: "0.95rem" }}>Weight (kg)</label>
+            <input
+              className="input-field"
+              type="number"
+              placeholder="e.g. 70"
+              value={form.weight}
+              onChange={(e) => setForm({ ...form, weight: e.target.value })}
+            />
           </div>
 
           <div className="input-group" style={{ position: "relative" }}>

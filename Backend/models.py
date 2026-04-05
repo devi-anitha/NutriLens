@@ -10,6 +10,7 @@ class UserProfile(BaseModel):
     primary_goal: Optional[str] = None
     height: Optional[float] = None
     weight: Optional[float] = None
+    dob: Optional[str] = None
 
 class UserSignup(BaseModel):
     name: str

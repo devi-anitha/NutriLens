@@ -105,11 +105,18 @@ export default function Dashboard() {
       const creds = localStorage.getItem("userCredentials");
       const user = creds ? JSON.parse(creds) : null;
 
-      if (!user) {
-        alert("Please login again");
+      console.log("USER:", user);
+      
+      if (!user || user.id === undefined || user.id === null) {
+        alert("Please login again. User ID is missing.");
         navigate("/auth");
         return;
       }
+
+      console.log("PAYLOAD:", {
+        user_id: user?.id,
+        ingredients: ingredients
+      });
 
       const response = await fetch(`http://127.0.0.1:8000/analyze-meal?lang=${lang}`, {
         method: "POST",
@@ -117,8 +124,8 @@ export default function Dashboard() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          user_id: user.id,
-          ingredients,
+          user_id: user?.id,
+          ingredients: ingredients,
         }),
       });
 
@@ -132,6 +139,7 @@ export default function Dashboard() {
       }
 
       const result = await response.json();
+      console.log("API RESPONSE:", result);
 
       const formattedData = {
         food: ingredients.map((i) => i.name).join(", "),

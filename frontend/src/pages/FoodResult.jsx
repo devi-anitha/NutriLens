@@ -220,9 +220,8 @@ export default function FoodResult() {
     { name: "Protein", value: data.protein || 0 },
     { name: "Fat", value: data.fat || 0 },
     { name: "Fiber", value: data.fiber || 0 },
-    { name: "Water", value: 0 },
-    { name: "Vitamins & Minerals", value: vitaminsTotal || 0 }
-  ];
+    
+  ].filter(item => item.value > 0);
   
   // Premium soft colors
   const COLORS = ['#3b82f6', '#22c55e', '#f97316', '#a855f7', '#06b6d4', '#ec4899'];

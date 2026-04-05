@@ -191,15 +191,18 @@ def create_profile(profile: UserProfile):
     cursor = conn.cursor()
 
     cursor.execute("""
-        INSERT INTO user_profile (user_id, name, age, gender, health_issues, primary_goal)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO user_profile (user_id, name, age, gender, health_issues, primary_goal, height, weight, dob)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         profile.user_id,
         profile.name,
         profile.age,
         profile.gender,
         json.dumps(profile.health_issues or []),
-        profile.primary_goal
+        profile.primary_goal,
+        profile.height,
+        profile.weight,
+        profile.dob
     ))
 
     conn.commit()
@@ -213,7 +216,7 @@ def get_profile(user_id: int):
     cursor = conn.cursor()
 
     cursor.execute(
-        "SELECT id, user_id, name, age, gender, health_issues, primary_goal FROM user_profile WHERE user_id=? ORDER BY id DESC LIMIT 1",
+        "SELECT id, user_id, name, age, gender, health_issues, primary_goal, height, weight, dob FROM user_profile WHERE user_id=? ORDER BY id DESC LIMIT 1",
         (user_id,)
     )
     row = cursor.fetchone()
@@ -233,7 +236,10 @@ def get_profile(user_id: int):
         "age": row[3],
         "gender": row[4],
         "health_issues": health_issues,
-        "primary_goal": row[6]
+        "primary_goal": row[6],
+        "height": row[7] if len(row) > 7 else None,
+        "weight": row[8] if len(row) > 8 else None,
+        "dob": row[9] if len(row) > 9 else None
     }
 
 # -------------------- MEAL HISTORY --------------------
@@ -242,22 +248,37 @@ def meal_history(user_id: int):
     conn = get_connection()
     cursor = conn.cursor()
 
-    cursor.execute("SELECT * FROM meal_history WHERE user_id=?", (user_id,))
+    cursor.execute("SELECT * FROM meal_history WHERE user_id=? ORDER BY id DESC", (user_id,))
     rows = cursor.fetchall()
     conn.close()
 
     if not rows:
         return {"total_meals": 0, "meals": []}
 
+    def clean_nan(value):
+        import math
+        if value is None:
+            return 0
+        if isinstance(value, float) and (math.isnan(value) or math.isinf(value)):
+            return 0
+        return value
+
     meals = []
     for row in rows:
+        nutrients = json.loads(row[5])
+        nutrients = {k: clean_nan(v) for k, v in nutrients.items()}
+
+        health_analysis = json.loads(row[6]) if row[6] else {}
+        if isinstance(health_analysis, dict):
+            health_analysis = {k: clean_nan(v) for k, v in health_analysis.items()}
+
         meals.append({
             "id": row[0],
             "time": row[2],
             "meal_type": row[3],
             "ingredients": json.loads(row[4]),
-            "nutrients": json.loads(row[5]),
-            "health_analysis": json.loads(row[6]) if row[6] else {},
+            "nutrients": nutrients,
+            "health_analysis": health_analysis,
             "recommendations": json.loads(row[7]) if row[7] else {},
             "ai_message": row[8]
         })
@@ -268,6 +289,10 @@ def meal_history(user_id: int):
 # -------------------- ANALYZE MEAL --------------------
 @app.post("/analyze-meal")
 def analyze_meal(data: IngredientsRequest, lang: str = "en-US"):
+    print("USER ID RECEIVED:", data.user_id)
+    if not data.user_id:
+        raise HTTPException(status_code=400, detail="User ID missing")
+
     LANG_MAP = {
         "en-US": "English",
         "hi-IN": "Hindi",
@@ -388,27 +413,34 @@ TEXT:
             ai_message = ai_message_english
 
     # ---------------- SAVE ----------------
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("""
-        INSERT INTO meal_history (user_id, time, meal_type, ingredients, nutrients, health_analysis, recommendations, ai_message)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    """, (
-        data.user_id,
-        datetime.now().strftime("%Y-%m-%d %H:%M"),
-        meal_type,
-        json.dumps(ingredients),
-        json.dumps(nutrients),
-        json.dumps(health_analysis),
-        json.dumps({
-            "avoid": health_analysis.get("avoid", []),
-            "add": health_analysis.get("recommend", [])
-        }),
-        ai_message
-    ))
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        print("USER ID:", data.user_id)
+        cursor.execute("""
+            INSERT INTO meal_history (user_id, time, meal_type, ingredients, nutrients, health_analysis, recommendations, ai_message)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            data.user_id,
+            datetime.now().strftime("%Y-%m-%d %H:%M"),
+            meal_type,
+            json.dumps(ingredients),
+            json.dumps(nutrients),
+            json.dumps(health_analysis),
+            json.dumps({
+                "avoid": health_analysis.get("avoid", []),
+                "add": health_analysis.get("recommend", [])
+            }),
+            ai_message
+        ))
 
-    conn.commit()
-    conn.close()
+        conn.commit()
+        print("Meal saved successfully")
+    except Exception as e:
+        print("Error saving meal:", e)
+    finally:
+        if 'conn' in locals() and conn:
+            conn.close()
 
     return {
         "meal_type": meal_type,
