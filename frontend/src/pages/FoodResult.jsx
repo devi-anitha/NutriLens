@@ -100,23 +100,14 @@ export default function FoodResult() {
   const location = useLocation();
 
   const data = location.state?.data;
-  const selectedLang = location.state?.lang || localStorage.getItem("selectedLang") || "en-US";
+  const selectedLang = "en-US";
 
   const [displayedText, setDisplayedText] = useState("");
   const [isSpeaking, setIsSpeaking] = useState(false);
   const typingIntervalRef = useRef(null);
   const hasSpoken = useRef(false);
 
-  const RESULT_TEXT = {
-    "en-US": { title: "Health Intelligence", sub: "AI-powered nutritional breakdown", back: "Back to Dashboard", meal: "Meal Analysis", alerts: "Health Alerts", dist: "Nutrient Distribution", sugg: "Smart Suggestions" },
-    "hi-IN": { title: "स्वास्थ्य बुद्धिमत्ता", sub: "एआई पोषण विश्लेषण", back: "डैशबोर्ड पर वापस", meal: "भोजन विश्लेषण", alerts: "स्वास्थ्य अलर्ट", dist: "पोषक तत्व वितरण", sugg: "स्मार्ट सुझाव" },
-    "te-IN": { title: "ఆరోగ్య ఇంటెలిజెన్స్", sub: "AI పోషకాహార విశ్లేషణ", back: "డ్యాష్‌బోర్డ్‌కి తిరిగి వెళ్ళు", meal: "భోజన విశ్లేషణ", alerts: "ఆరోగ్య హెచ్చరికలు", dist: "పోషకాల పంపిణీ", sugg: "స్మార్ట్ సూచనలు" },
-    "ta-IN": { title: "சுகாதார நுண்ணறிவு", sub: "AI ஊட்டச்சத்து பகுப்பாய்வு", back: "டாஷ்போர்டுக்கு திரும்பு", meal: "உணவு பகுப்பாய்வு", alerts: "சுகாதார எச்சரிக்கைகள்", dist: "ஊட்டச்சத்து விநியோகம்", sugg: "ஸ்மார்ட் பரிந்துரைகள்" },
-    "kn-IN": { title: "ಆರೋಗ್ಯ ಬುದ್ಧಿಮತ್ತೆ", sub: "AI ಪೌಷ್ಟಿಕಾಂಶ ವಿಶ್ಲೇಷಣೆ", back: "ಡ್ಯಾಶ್‌ಬೋರ್ಡ್‌ಗೆ ಹಿಂದಿರುಗಿ", meal: "ಊಟದ ವಿಶ್ಲೇಷಣೆ", alerts: "ಆರೋಗ್ಯ ಎಚ್ಚರಿಕೆಗಳು", dist: "ಪೋಷಕಾಂಶಗಳ ವಿತರಣೆ", sugg: "ಸ್ಮಾರ್ಟ್ ಸಲಹೆಗಳು" },
-    "ml-IN": { title: "ആരോഗ്യ ഇന്റലിജൻസ്", sub: "AI പോഷകാഹാര വിശകലനം", back: "ഡാഷ്‌ബോർഡിലേക്ക് മടങ്ങുക", meal: "ഭക്ഷണ വിശകലനം", alerts: "ആരോഗ്യ അലേർട്ടുകൾ", dist: "പോഷക വിതരണം", sugg: "സ്മാർട്ട് നിർദ്ദേശങ്ങൾ" },
-    "bn-IN": { title: "স্বাস্থ্য বুদ্ধিমত্তা", sub: "AI পুষ্টি বিশ্লেষণ", back: "ড্যাশবোর্ডে ফিরে যান", meal: "খাবার বিশ্লেষণ", alerts: "স্বাস্থ্য সতর্কতা", dist: "পুষ্টি বন্টন", sugg: "স্মার্ট পরামর্শ" }
-  };
-  const t = RESULT_TEXT[selectedLang] || RESULT_TEXT["en-US"];
+  const t = { title: "Health Intelligence", sub: "AI-powered nutritional breakdown", back: "Back to Dashboard", meal: "Meal Analysis", alerts: "Health Alerts", dist: "Nutrient Distribution", sugg: "Smart Suggestions" };
 
   useEffect(() => {
     if (!data) {
@@ -133,25 +124,16 @@ export default function FoodResult() {
 
       const text = data.speechText;
       const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = selectedLang;
+      utterance.lang = "en-US";
 
       const applyVoiceAndSpeak = () => {
         const voices = window.speechSynthesis.getVoices();
         if (voices.length > 0) {
-          // 1. Exact match with selected lang (e.g. te-IN)
-          let selectedVoice = voices.find(v => v.lang === selectedLang);
+          let selectedVoice = voices.find(v => v.lang === "en-US");
           
-          // 2. Closest match (same base language e.g. te)
-          if (!selectedVoice) {
-            const baseLang = selectedLang.split('-')[0];
-            selectedVoice = voices.find(v => v.lang.startsWith(baseLang));
-          }
-
-          // Apply female preference dynamically if matching language voice has variants
           if (selectedVoice) {
-             const baseLang = selectedLang.split('-')[0];
              const femaleVariant = voices.find(v => 
-               v.lang.startsWith(baseLang) && 
+               v.lang.startsWith("en") && 
                (v.name.toLowerCase().includes("female") || v.name.toLowerCase().includes("samantha") || v.name.toLowerCase().includes("zira") || v.name.toLowerCase().includes("google"))
              );
              if (femaleVariant) {
@@ -159,7 +141,6 @@ export default function FoodResult() {
              }
           }
 
-          // 3. Fallback to default (handled implicitly, but will bound selectedVoice if valid)
           if (selectedVoice) {
             utterance.voice = selectedVoice;
           }

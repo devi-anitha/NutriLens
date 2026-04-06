@@ -288,20 +288,10 @@ def meal_history(user_id: int):
 # -------------------- ANALYZE MEAL --------------------
 # -------------------- ANALYZE MEAL --------------------
 @app.post("/analyze-meal")
-def analyze_meal(data: IngredientsRequest, lang: str = "en-US"):
+def analyze_meal(data: IngredientsRequest):
     print("USER ID RECEIVED:", data.user_id)
     if not data.user_id:
         raise HTTPException(status_code=400, detail="User ID missing")
-
-    LANG_MAP = {
-        "en-US": "English",
-        "hi-IN": "Hindi",
-        "te-IN": "Telugu",
-        "ta-IN": "Tamil",
-        "kn-IN": "Kannada",
-        "ml-IN": "Malayalam",
-        "bn-IN": "Bengali"
-    }
 
     ingredients = [i.dict() for i in data.ingredients]
 
@@ -336,14 +326,10 @@ def analyze_meal(data: IngredientsRequest, lang: str = "en-US"):
         nutrients
     )
 
-    # ---------------- LANGUAGE ----------------
-    actual_lang = lang if lang in LANG_MAP else "en-US"
-    lang_name = LANG_MAP.get(actual_lang)
+    # ---------------- AI GENERATION ----------------
+    base_goal = f"{row[6] if row[6] else 'Healthy Living'}. Give response in English only. Do not translate. Do NOT cut off the answer."
 
-    # ---------------- STEP 1: ENGLISH GENERATION ----------------
-    base_goal = f"{row[6] if row[6] else 'Healthy Living'}. Give a complete and detailed response in English. Do NOT cut off the answer."
-
-    ai_message_english = generate_ai_advice(
+    ai_message = generate_ai_advice(
         nutrients,
         meal_type,
         health_issues,
@@ -351,66 +337,8 @@ def analyze_meal(data: IngredientsRequest, lang: str = "en-US"):
         row[3]
     )
 
-    if not ai_message_english:
-        ai_message_english = "Basic health analysis completed."
-
-    ai_message = ai_message_english
-
-    # ---------------- STEP 2: STRICT TRANSLATION ----------------
-    if lang_name != "English":
-        try:
-            from groq import Groq
-
-            groq_key = os.getenv("GROQ_API_KEY")
-            if groq_key:
-                client = Groq(api_key=groq_key)
-
-                # 🔥 FIXED PROMPT (STRICT)
-                translation_prompt = f"""
-You are a STRICT translator.
-
-Translate the following English text into {lang_name}.
-
-RULES:
-- Do NOT change meaning
-- Do NOT rephrase
-- Do NOT summarize
-- Do NOT add new advice
-- Do NOT remove anything
-- Keep tone EXACTLY same
-- Translate line by line
-
-IMPORTANT:
-This is ONLY translation. Do NOT act as a nutrition expert.
-
-TEXT:
-{ai_message_english}
-"""
-
-                response = client.chat.completions.create(
-                    model="llama-3.1-8b-instant",
-                    messages=[
-                        {
-                            "role": "system",
-                            "content": f"You are a strict translation engine. Only translate into {lang_name}. Never modify meaning."
-                        },
-                        {"role": "user", "content": translation_prompt}
-                    ],
-                    max_tokens=800,
-                    temperature=0.2
-                )
-
-                translated_text = response.choices[0].message.content.strip()
-
-                # 🔥 SAFETY CHECK (VERY IMPORTANT)
-                if translated_text and len(translated_text) > len(ai_message_english) * 0.5:
-                    ai_message = translated_text
-                else:
-                    ai_message = ai_message_english
-
-        except Exception as e:
-            print("❌ Translation Error:", e)
-            ai_message = ai_message_english
+    if not ai_message:
+        ai_message = "Basic health analysis completed."
 
     # ---------------- SAVE ----------------
     try:
