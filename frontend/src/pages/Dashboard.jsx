@@ -101,7 +101,7 @@ export default function Dashboard() {
         ingredients: ingredients
       });
 
-      const response = await fetch(`http://127.0.0.1:8000/analyze-meal`, {
+      const response = await fetch(`https://nutrilens-backend-lqes.onrender.com/analyze-meal`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
