@@ -41,6 +41,7 @@ export default function Auth() {
 
   // ---------------- SIGN UP ----------------
   const signUp = async () => {
+    console.log("NEW BUILD ACTIVE ✅");
     if (!form.username || !form.mobile || !form.email || !form.password) {
       alert("Fill all fields");
       return;
