@@ -5,3 +5,4 @@ pydantic
 requests
 httpx
 groq
+pandas
