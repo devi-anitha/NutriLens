@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import "./AuthPage.css";
 import "../styles/global.css";
 
+const API = "https://nutrilens-backend-lqes.onrender.com";
+
 export default function AuthPage() {
   const navigate = useNavigate();
   const [isSignUp, setIsSignUp] = useState(false);
@@ -49,7 +51,7 @@ export default function AuthPage() {
     }
     
     try {
-      const resp = await fetch("http://127.0.0.1:8000/auth/signup", {
+      const resp = await fetch(`${API}/auth/signup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -88,7 +90,7 @@ export default function AuthPage() {
     }
 
     try {
-      const resp = await fetch("http://127.0.0.1:8000/auth/login", {
+      const resp = await fetch(`${API}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -103,7 +105,7 @@ export default function AuthPage() {
         
         // Check if profile exists
         try {
-          const profResp = await fetch("http://127.0.0.1:8000/user/profile/" + data.user.id);
+          const profResp = await fetch(`${API}/user/profile/${data.user.id}`);
           if (profResp.ok) {
             navigate("/dashboard");
           } else {
@@ -129,7 +131,7 @@ export default function AuthPage() {
     e.preventDefault();
     if (resetStep === 1) {
       if (!resetData.identifier) return alert("Please enter identifier");
-      const resp = await fetch("http://127.0.0.1:8000/auth/send-otp", {
+      const resp = await fetch(`${API}/auth/send-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ identifier: resetData.identifier })
@@ -144,7 +146,7 @@ export default function AuthPage() {
     } else {
       if (!resetData.otp || resetData.newPassword.length < 6) return alert("Invalid OTP or password too short");
       
-      const verifyResp = await fetch("http://127.0.0.1:8000/auth/verify-otp", {
+      const verifyResp = await fetch(`${API}/auth/verify-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ identifier: resetData.identifier, otp: resetData.otp })
@@ -152,7 +154,7 @@ export default function AuthPage() {
       
       if (!verifyResp.ok) return alert("Invalid OTP");
 
-      const resetResp = await fetch("http://127.0.0.1:8000/auth/reset-password", {
+      const resetResp = await fetch(`${API}/auth/reset-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ identifier: resetData.identifier, new_password: resetData.newPassword })
