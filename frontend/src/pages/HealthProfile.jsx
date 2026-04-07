@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "../styles/global.css";
 
-const API = "http://127.0.0.1:8000";
+const API = "https://nutrilens-backend-lqes.onrender.com";
 
 const CONDITIONS = [
   "Diabetes Type 1","Diabetes Type 2","High Blood Pressure","Low Blood Pressure",

@@ -16,7 +16,7 @@ export default function HistoryPage() {
            navigate("/auth");
            return;
         }
-        const response = await fetch("http://127.0.0.1:8000/meal/history/" + user.id);
+        const response = await fetch("https://nutrilens-backend-lqes.onrender.com/meal/history/" + user.id);
         if (response.ok) {
           const data = await response.json();
           // Transform backend format to frontend format
