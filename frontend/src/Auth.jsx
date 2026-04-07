@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-const API = "http://127.0.0.1:8000";
+const API = "https://nutrilens-backend-lqes.onrender.com";
 
 export default function Auth() {
   const [mode, setMode] = useState("signin");
@@ -98,7 +98,7 @@ export default function Auth() {
   }
 
   try {
-    const res = await fetch("http://127.0.0.1:8000/auth/login", {
+    const res = await fetch(`${API}/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
