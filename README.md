@@ -1,4 +1,4 @@
- NutriLens: AI-Powered Personalized Nutrition & Health Analysis System
+NutriLens: AI-Powered Personalized Nutrition & Health Analysis System
  Authors
  D Anitha(Y22ACS441)
  A Venkata Harshitha(Y22ACS411)
