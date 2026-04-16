@@ -12,9 +12,10 @@ from database import create_user_table, get_connection
 from health_engine import analyze_health_rules
 from ai_engine import generate_ai_advice
 
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Mail
+
 import os
-import smtplib
-from email.mime.text import MIMEText
 import random
 from dotenv import load_dotenv
 import sqlite3
@@ -61,7 +62,6 @@ def detect_meal_type():
     else:
         return "Dinner"
 
-# 🔥 FIX: safe value for NaN / None
 def safe_value(val):
     if val is None:
         return 0
@@ -76,6 +76,25 @@ def root():
 
 # -------------------- OTP STORE --------------------
 OTP_STORE = {}
+
+# -------------------- SEND EMAIL (SENDGRID) --------------------
+def send_email(to_email, otp):
+    try:
+        message = Mail(
+            from_email='nutrilenss@gmail.com',  # 🔥 replace this
+            to_emails=to_email,
+            subject='NutriLens OTP Code',
+            html_content=f'<h2>Your OTP is: {otp}</h2>'
+        )
+
+        sg = SendGridAPIClient(os.getenv("SENDGRID_API_KEY"))
+        response = sg.send(message)
+
+        print("✅ Email sent:", response.status_code)
+
+    except Exception as e:
+        print("❌ Email failed:", e)
+        print("DEV MODE OTP:", otp)  # fallback
 
 # -------------------- AUTH --------------------
 @app.post("/auth/signup")
@@ -132,24 +151,8 @@ def send_otp(data: OTPRequest):
     otp = str(random.randint(1000, 9999))
     OTP_STORE[data.identifier] = otp
 
-    email_user = os.getenv("EMAIL_USER")
-    email_pass = os.getenv("EMAIL_PASSWORD")
-
-    try:
-        msg = MIMEText(f"Your NutriLens OTP is: {otp}")
-        msg["Subject"] = "NutriLens OTP"
-        msg["From"] = email_user
-        msg["To"] = user_email
-
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
-            server.login(email_user, email_pass)
-            server.sendmail(email_user, user_email, msg.as_string())
-
-        print("✅ OTP sent:", otp)
-
-    except Exception as e:
-        print("❌ Email failed:", e)
-        print("DEV MODE OTP:", otp)
+    # 🔥 NEW EMAIL METHOD
+    send_email(user_email, otp)
 
     return {"message": "OTP sent"}
 
@@ -281,7 +284,6 @@ def meal_history(user_id: int):
     return {"total_meals": len(meals), "meals": meals}
 
 # -------------------- ANALYZE MEAL --------------------
-# -------------------- ANALYZE MEAL --------------------
 @app.post("/analyze-meal")
 def analyze_meal(data: IngredientsRequest):
     print("USER ID RECEIVED:", data.user_id)
@@ -291,8 +293,6 @@ def analyze_meal(data: IngredientsRequest):
     ingredients = [i.dict() for i in data.ingredients]
 
     nutrients = calculate_total_nutrients(ingredients)["total_nutrients"]
-
-    # 🔥 FIX: remove NaN
     nutrients = {k: safe_value(v) for k, v in nutrients.items()}
 
     meal_type = detect_meal_type()
@@ -321,8 +321,7 @@ def analyze_meal(data: IngredientsRequest):
         nutrients
     )
 
-    # ---------------- AI GENERATION ----------------
-    base_goal = f"{row[6] if row[6] else 'Healthy Living'}. Give response in English only. Do not translate. Do NOT cut off the answer."
+    base_goal = f"{row[6] if row[6] else 'Healthy Living'}. Give response in English only."
 
     ai_message = generate_ai_advice(
         nutrients,
@@ -335,7 +334,6 @@ def analyze_meal(data: IngredientsRequest):
     if not ai_message:
         ai_message = "Basic health analysis completed."
 
-    # ---------------- SAVE ----------------
     try:
         conn = get_connection()
         cursor = conn.cursor()

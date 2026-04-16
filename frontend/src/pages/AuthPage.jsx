@@ -136,12 +136,16 @@ export default function AuthPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ identifier: resetData.identifier })
       });
+      const data = await resp.json();
       if (resp.ok) {
-        alert(`OTP sent to ${resetData.identifier} via email`);
+        alert(data.message || ` OTP sent to ${resetData.identifier}`);
+        if (data.otp) {
+          console.log("DEV OTP:", data.otp);
+          alert("DEBUG OTP: " + data.otp);
+        }
         setResetStep(2);
       } else {
-        const err = await resp.json();
-        alert(err.detail || "Failed to send OTP");
+        alert(data.detail || "Failed to send OTP");
       }
     } else {
       if (!resetData.otp || resetData.newPassword.length < 6) return alert("Invalid OTP or password too short");
