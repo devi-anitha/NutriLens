@@ -18,6 +18,8 @@ from sendgrid.helpers.mail import Mail
 import os
 import random
 from dotenv import load_dotenv
+from datetime import datetime
+import pytz
 import sqlite3
 
 load_dotenv()
@@ -52,7 +54,9 @@ class IngredientsRequest(BaseModel):
 
 # -------------------- HELPERS --------------------
 def detect_meal_type():
-    hour = datetime.now().hour
+    india = pytz.timezone("Asia/Kolkata")
+    current_time = datetime.now(india)
+    hour = current_time.hour
     if 5 <= hour < 11:
         return "Breakfast"
     elif 11 <= hour < 16:
