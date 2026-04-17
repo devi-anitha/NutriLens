@@ -191,7 +191,7 @@ export default function AuthPage() {
           <div className="auth-header">
             <h2 className="auth-title">Reset Password</h2>
             <p className="auth-subtitle">
-              {resetStep === 1 ? "Enter your email or mobile number to receive a reset OTP." : "Enter OTP and your new password."}
+              {resetStep === 1 ? "Enter your email  to receive a reset OTP." : "Enter OTP and your new password."}
             </p>
           </div>
           <form className="auth-form" onSubmit={handleForgotPw}>
@@ -201,7 +201,7 @@ export default function AuthPage() {
                 <input
                   className="auth-input"
                   type="text"
-                  placeholder="Email or Mobile Number"
+                  placeholder="Enter your Email"
                   value={resetData.identifier}
                   onChange={(e) => setResetData({...resetData, identifier: e.target.value})}
                   required
@@ -385,7 +385,7 @@ export default function AuthPage() {
                 className="auth-input"
                 type="text"
                 name="identifier"
-                placeholder="Email / Mobile / Username"
+                placeholder="Email / Mobile"
                 value={formData.identifier}
                 onChange={handleChange}
                 required
